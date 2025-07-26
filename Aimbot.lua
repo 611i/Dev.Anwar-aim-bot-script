@@ -3,7 +3,6 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
-local AimSmooth = 0.9
 local PredictAmount = 15
 local TargetPlayer = nil
 local IsAiming = false
@@ -14,7 +13,7 @@ local function GetTarget()
     local closestDistance = math.huge
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.Humanoid.Health > 0 then
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
             local screenPos, onScreen = Camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
             if onScreen then
                 local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
@@ -32,7 +31,7 @@ end
 -- GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AimbotGui"
-ScreenGui.ResetOnSpawn = false -- ✅ عشان تبقى الواجهة بعد الموت
+ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local Frame = Instance.new("Frame")
@@ -94,21 +93,16 @@ PredictButton.MouseButton1Click:Connect(function()
 end)
 
 RunService.RenderStepped:Connect(function()
-    if IsAiming and TargetPlayer then
-        if TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart") and TargetPlayer.Character.Humanoid.Health > 0 then
+    if IsAiming then
+        -- تحقّق إن الهدف مات أو اختفى
+        if not TargetPlayer or not TargetPlayer.Character or not TargetPlayer.Character:FindFirstChild("Humanoid") or TargetPlayer.Character.Humanoid.Health <= 0 then
+            TargetPlayer = GetTarget()
+        end
+
+        if TargetPlayer and TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local HRP = TargetPlayer.Character.HumanoidRootPart
             local PredictedPosition = HRP.Position + (HRP.Velocity * (PredictAmount / 100))
-
-            local targetDirection = (PredictedPosition - Camera.CFrame.Position).Unit
-            local currentDirection = Camera.CFrame.LookVector
-            local dot = currentDirection:Dot(targetDirection)
-
-            if dot < 0.999 then
-                local newCF = CFrame.new(Camera.CFrame.Position, PredictedPosition)
-                Camera.CFrame = Camera.CFrame:Lerp(newCF, AimSmooth)
-            end
-        else
-            TargetPlayer = GetTarget()
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, PredictedPosition) -- بدون سموذ، مباشر وثابت
         end
     end
 end)
